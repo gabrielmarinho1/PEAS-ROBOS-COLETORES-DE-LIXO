@@ -66,3 +66,24 @@ Resultados obtidos com a mesma distribuição aleatória inicial dos 15 lixos:
 | **2. Baseado em Modelos** | 15 | [Preencher] | [Preencher] | [Preencher] |
 | **3. Baseado em Objetivos** | 15 | [Preencher] | [Preencher] | [Preencher] |
 | **4. Baseado em Utilidade** | 15 | [Preencher] | [Preencher] | [Preencher] |
+
+## Função de Desempenho
+
+A função de desempenho do agente considera a coleta de lixo e o custo
+de movimentação no ambiente.
+
+- Lixo orgânico coletado: +1 ponto
+- Lixo reciclável coletado: +5 pontos
+- O agente deve minimizar o número de passos executados
+- O agente deve minimizar o tempo de execução
+- O agente deve evitar movimentos desnecessários e colisões
+
+A comparação entre as arquiteturas será realizada utilizando a mesma
+distribuição inicial de lixo na matriz 20x20.
+
+Para cada agente serão registrados:
+
+- quantidade de lixos coletados;
+- pontuação total;
+- número de passos;
+- tempo de execução.
