@@ -66,12 +66,3 @@ Resultados obtidos com a mesma distribuição aleatória inicial dos 15 lixos:
 | **2. Baseado em Modelos** | 15 | [Preencher] | [Preencher] | [Preencher] |
 | **3. Baseado em Objetivos** | 15 | [Preencher] | [Preencher] | [Preencher] |
 | **4. Baseado em Utilidade** | 15 | [Preencher] | [Preencher] | [Preencher] |
-
----
-
-## 🚀 Como Executar o Projeto
-
-1. **Clone o repositório:**
-   ```bash
-   git clone [https://github.com/seu-usuario/seu-repositorio.git](https://github.com/seu-usuario/seu-repositorio.git)
-   cd seu-repositorio
