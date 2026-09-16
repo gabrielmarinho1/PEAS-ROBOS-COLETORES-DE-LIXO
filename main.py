@@ -124,6 +124,11 @@ def obter_vizinhos(posicao):
     return vizinhos
 
 
+def distancia_manhattan(p1, p2):
+    """Calcula a Distância de Manhattan entre dois pontos (linha, coluna)."""
+    return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+
+
 def passo_em_direcao(origem, destino):
     """Retorna a próxima posição ao mover 1 passo (linha/coluna) na
     direção do destino (Mover Esquerda/Direita/Cima/Baixo)."""
@@ -385,6 +390,225 @@ def agente_baseado_em_modelos(lixos_iniciais, limite_passos=20000, verboso=False
 
 
 # ---------------------------------------------------------------------------
+# Agente BDI / Baseado em Objetivos
+# ---------------------------------------------------------------------------
+
+def agente_baseado_em_objetivos(lixos_iniciais, limite_passos=20000, verboso=False):
+    """Executa o Agente BDI / Baseado em Objetivos até coletar e entregar
+    todos os lixos (ou até atingir o limite de passos).
+
+    Arquitetura mental BDI (Beliefs, Desires, Intentions):
+    - Crenças (Beliefs):
+        * Posição atual do robô R1 (linha, coluna).
+        * Estado do inventário C: Livre (None), Orgânico ('O') ou Reciclável ('R').
+        * Localização conhecida e fixa da lixeira X em (20, 20).
+        * Mapa conhecido V[linha][coluna] registrando as visitas a cada célula.
+        * Mapa de crenças dos lixos conhecidos detectados pelos sensores locais
+          (célula atual e 8 vizinhos imediatos).
+    - Desejos (Desires):
+        * Coletar lixos recicláveis (+5 pontos).
+        * Coletar lixos orgânicos (+1 ponto).
+        * Descarregar e esvaziar a carga na lixeira X(20, 20).
+        * Otimizar rotas e minimizar passos.
+    - Intenções (Intentions) & Planejamento:
+        * Se ocupado (carga != None): compromete-se com a meta da lixeira (20, 20)
+          seguindo a rota de menor custo.
+        * Se livre (carga == None):
+            1. Busca focada em recicláveis: se houver recicláveis conhecidos,
+               define a meta como o reciclável mais próximo.
+            2. Se não houver recicláveis conhecidos, mas houver orgânicos conhecidos,
+               define a meta como o orgânico mais próximo.
+            3. Caso nenhum lixo seja conhecido: busca exploratória ativa, elegendo
+               como meta a célula não visitada (ou menos visitada) mais próxima no grid.
+
+    Parâmetros
+    ----------
+    lixos_iniciais : dict
+        Dicionário {(linha, coluna): tipo} com os lixos do ambiente.
+    limite_passos : int
+        Número máximo de passos antes de encerrar por segurança.
+    verboso : bool
+        Se True, imprime cada ação e intenção realizada pelo agente.
+
+    Retorna
+    -------
+    dict
+        Métricas de desempenho da execução.
+    """
+
+    # --- Cópia do ambiente (não altera o original) ---
+    lixos = dict(lixos_iniciais)
+
+    # --- Crenças (Beliefs) do agente ---
+    crencas = {
+        "posicao": POSICAO_INICIAL,
+        "carga": None,  # None (Livre), "O" (Orgânico) ou "R" (Reciclável)
+        "lixeira": POSICAO_LIXEIRA,
+        "V": [[0] * (TAMANHO + 1) for _ in range(TAMANHO + 1)],
+        "lixos_conhecidos": {}  # {(linha, coluna): tipo}
+    }
+
+    # Registra a posição inicial na memória de visitas
+    linha_i, coluna_i = POSICAO_INICIAL
+    crencas["V"][linha_i][coluna_i] = 1
+
+    def atualizar_percepcao():
+        """Função sensorial: atualiza as crenças do agente sobre os lixos
+        observados na posição atual e nos 8 vizinhos imediatos."""
+        pos = crencas["posicao"]
+
+        # Percepção da célula atual
+        if pos in lixos:
+            crencas["lixos_conhecidos"][pos] = lixos[pos]
+        elif pos in crencas["lixos_conhecidos"]:
+            del crencas["lixos_conhecidos"][pos]
+
+        # Percepção dos 8 vizinhos imediatos
+        for vizinho in obter_vizinhos(pos):
+            if vizinho in lixos:
+                crencas["lixos_conhecidos"][vizinho] = lixos[vizinho]
+            elif vizinho in crencas["lixos_conhecidos"]:
+                del crencas["lixos_conhecidos"][vizinho]
+
+    # Percepção inicial no ponto de partida
+    atualizar_percepcao()
+
+    # --- Contadores de desempenho ---
+    pontuacao = 0
+    lixos_coletados = 0
+    passos = 0
+
+    tempo_inicio = time.perf_counter()
+
+    while lixos or crencas["carga"] is not None:
+
+        if passos >= limite_passos:
+            print("Limite de passos atingido. Encerrando execução.")
+            break
+
+        posicao_agente = crencas["posicao"]
+        carga = crencas["carga"]
+
+        reciclaveis_conhecidos = [
+            p for p, t in crencas["lixos_conhecidos"].items() if t == "R"
+        ]
+
+        # --- Regra 1: Está sobre um lixo e está Livre ---
+        # Priorização de coleta: se for 'R' ou se não houver 'R' conhecido em outro local
+        if posicao_agente in lixos and carga is None and (
+            lixos[posicao_agente] == "R" or not reciclaveis_conhecidos
+        ):
+            carga = lixos.pop(posicao_agente)
+            crencas["carga"] = carga
+            crencas["lixos_conhecidos"].pop(posicao_agente, None)
+
+            if verboso:
+                print(f"Passo {passos}: Pegar Lixo ({carga}) em {posicao_agente}")
+
+        # --- Regra 2: Tem carga e chegou à lixeira → Solta e pontua ---
+        elif carga is not None and posicao_agente == POSICAO_LIXEIRA:
+            valor = VALOR_RECICLAVEL if carga == "R" else VALOR_ORGANICO
+            pontuacao += valor
+            lixos_coletados += 1
+
+            if verboso:
+                print(f"Passo {passos}: Soltar Lixo ({carga}) em {posicao_agente} "
+                      f"(+{valor} pontos)")
+
+            carga = None
+            crencas["carga"] = None
+
+        # --- Regra 3: Ocupado com carga → Intenção: Descarregar na lixeira (20, 20) ---
+        elif carga is not None:
+            intencao = "DESCARREGAR_LIXEIRA"
+            meta = POSICAO_LIXEIRA
+
+            posicao_agente = passo_em_direcao(posicao_agente, meta)
+            passos += 1
+
+            crencas["posicao"] = posicao_agente
+            l, c = posicao_agente
+            crencas["V"][l][c] += 1
+            atualizar_percepcao()
+
+            if verboso:
+                print(f"Passo {passos}: [{intencao}] Mover em direção à lixeira {meta} -> {posicao_agente}")
+
+        # --- Regra 4: Livre → Deliberação BDI e Planejamento de Metas ---
+        else:
+            organicos_conhecidos = [
+                p for p, t in crencas["lixos_conhecidos"].items() if t == "O"
+            ]
+
+            if reciclaveis_conhecidos:
+                # Intenção 1 (Prioritária): Coletar reciclável conhecido mais próximo
+                intencao = "COLETAR_RECICLAVEL"
+                meta = min(
+                    reciclaveis_conhecidos,
+                    key=lambda p: distancia_manhattan(posicao_agente, p)
+                )
+
+            elif organicos_conhecidos:
+                # Intenção 2: Coletar orgânico conhecido mais próximo
+                intencao = "COLETAR_ORGANICO"
+                meta = min(
+                    organicos_conhecidos,
+                    key=lambda p: distancia_manhattan(posicao_agente, p)
+                )
+
+            else:
+                # Intenção 3: Busca exploratória focada em recicláveis
+                # Seleciona como meta a célula não visitada (ou menos visitada) mais próxima
+                intencao = "EXPLORAR"
+                nao_visitadas = [
+                    (l, c) for l in range(1, TAMANHO + 1) for c in range(1, TAMANHO + 1)
+                    if crencas["V"][l][c] == 0
+                ]
+
+                if nao_visitadas:
+                    meta = min(
+                        nao_visitadas,
+                        key=lambda p: (distancia_manhattan(posicao_agente, p), p[0], p[1])
+                    )
+                else:
+                    menor_visitas = min(
+                        crencas["V"][l][c] for l in range(1, TAMANHO + 1) for c in range(1, TAMANHO + 1)
+                    )
+                    candidatos = [
+                        (l, c) for l in range(1, TAMANHO + 1) for c in range(1, TAMANHO + 1)
+                        if crencas["V"][l][c] == menor_visitas
+                    ]
+                    meta = min(
+                        candidatos,
+                        key=lambda p: (distancia_manhattan(posicao_agente, p), p[0], p[1])
+                    )
+
+            posicao_agente = passo_em_direcao(posicao_agente, meta)
+            passos += 1
+
+            crencas["posicao"] = posicao_agente
+            l, c = posicao_agente
+            crencas["V"][l][c] += 1
+            atualizar_percepcao()
+
+            if verboso:
+                print(f"Passo {passos}: [{intencao}] Mover em direção a {meta} -> {posicao_agente}")
+
+    tempo_fim = time.perf_counter()
+    tempo_execucao_ms = (tempo_fim - tempo_inicio) * 1000
+
+    resultado = {
+        "arquitetura": "Baseado em Objetivos",
+        "lixos_coletados": lixos_coletados,
+        "pontuacao_total": pontuacao,
+        "numero_passos": passos,
+        "tempo_execucao_ms": round(tempo_execucao_ms, 3),
+    }
+
+    return resultado
+
+
+# ---------------------------------------------------------------------------
 # Exibição de resultados
 # ---------------------------------------------------------------------------
 
@@ -476,8 +700,12 @@ def main():
     resultado_modelos = agente_baseado_em_modelos(lixos, verboso=False)
     mostrar_resultado_agente(resultado_modelos)
 
+    # --- Arquitetura 3: Agente BDI / Baseado em Objetivos ---
+    resultado_objetivos = agente_baseado_em_objetivos(lixos, verboso=False)
+    mostrar_resultado_agente(resultado_objetivos)
+
     # --- Tabela Comparativa ---
-    mostrar_tabela_comparativa([resultado_simples, resultado_modelos])
+    mostrar_tabela_comparativa([resultado_simples, resultado_modelos, resultado_objetivos])
 
 
 if __name__ == "__main__":
