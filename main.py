@@ -607,6 +607,121 @@ def agente_baseado_em_objetivos(lixos_iniciais, limite_passos=20000, verboso=Fal
 
     return resultado
 
+# ---------------------------------------------------------------------------
+# Agente Baseado em Utilidades
+# ---------------------------------------------------------------------------
+
+def agente_baseado_em_utilidades(lixos_iniciais, limite_passos=20000, verboso=False):
+    """Executa o Agente Baseado em Utilidade avaliando o custo-benefício."""
+    lixos = dict(lixos_iniciais)
+
+    crencas = {
+        "posicao": POSICAO_INICIAL,
+        "carga": None,
+        "lixeira": POSICAO_LIXEIRA,
+        "V": [[0] * (TAMANHO + 1) for _ in range(TAMANHO + 1)],
+        "lixos_conhecidos": {}
+    }
+
+    linha_i, coluna_i = POSICAO_INICIAL
+    crencas["V"][linha_i][coluna_i] = 1
+
+    def atualizar_percepcao():
+        pos = crencas["posicao"]
+        if pos in lixos:
+            crencas["lixos_conhecidos"][pos] = lixos[pos]
+        elif pos in crencas["lixos_conhecidos"]:
+            del crencas["lixos_conhecidos"][pos]
+
+        for vizinho in obter_vizinhos(pos):
+            if vizinho in lixos:
+                crencas["lixos_conhecidos"][vizinho] = lixos[vizinho]
+            elif vizinho in crencas["lixos_conhecidos"]:
+                del crencas["lixos_conhecidos"][vizinho]
+
+    atualizar_percepcao()
+    pontuacao = 0
+    lixos_coletados = 0
+    passos = 0
+    tempo_inicio = time.perf_counter()
+
+    while lixos or crencas["carga"] is not None:
+        if passos >= limite_passos:
+            break
+
+        posicao_agente = crencas["posicao"]
+        carga = crencas["carga"]
+
+        # 1. Pegar lixo (Priorizando reciclável local)
+        if posicao_agente in lixos and carga is None:
+            carga = lixos.pop(posicao_agente)
+            crencas["carga"] = carga
+            crencas["lixos_conhecidos"].pop(posicao_agente, None)
+
+        # 2. Soltar lixo na lixeira
+        elif carga is not None and posicao_agente == POSICAO_LIXEIRA:
+            pontuacao += VALOR_RECICLAVEL if carga == "R" else VALOR_ORGANICO
+            lixos_coletados += 1
+            carga = None
+            crencas["carga"] = None
+
+        # 3. Levar carga para a lixeira
+        elif carga is not None:
+            meta = POSICAO_LIXEIRA
+            posicao_agente = passo_em_direcao(posicao_agente, meta)
+            passos += 1
+            crencas["posicao"] = posicao_agente
+            crencas["V"][posicao_agente[0]][posicao_agente[1]] += 1
+            atualizar_percepcao()
+
+        # 4. Decisão por Utilidade
+        else:
+            if crencas["lixos_conhecidos"]:
+                melhor_lixo = None
+                maior_utilidade = -float('inf')
+
+                for pos_lixo, tipo_lixo in crencas["lixos_conhecidos"].items():
+                    valor = VALOR_RECICLAVEL if tipo_lixo == "R" else VALOR_ORGANICO
+                    d_agente_lixo = distancia_manhattan(posicao_agente, pos_lixo)
+                    d_lixo_lixeira = distancia_manhattan(pos_lixo, POSICAO_LIXEIRA)
+
+                    # Custo-benefício da ação
+                    utilidade = valor - (1 * d_agente_lixo) - d_lixo_lixeira
+
+                    if utilidade > maior_utilidade:
+                        maior_utilidade = utilidade
+                        melhor_lixo = pos_lixo
+
+                meta = melhor_lixo
+            else:
+                # Explorar mapa (célula não visitada mais próxima)
+                nao_visitadas = [
+                    (l, c) for l in range(1, TAMANHO + 1) for c in range(1, TAMANHO + 1)
+                    if crencas["V"][l][c] == 0
+                ]
+                if nao_visitadas:
+                    meta = min(nao_visitadas, key=lambda p: (distancia_manhattan(posicao_agente, p), p[0], p[1]))
+                else:
+                    menor_visitas = min(
+                        crencas["V"][l][c] for l in range(1, TAMANHO + 1) for c in range(1, TAMANHO + 1))
+                    candidatos = [(l, c) for l in range(1, TAMANHO + 1) for c in range(1, TAMANHO + 1) if
+                                  crencas["V"][l][c] == menor_visitas]
+                    meta = min(candidatos, key=lambda p: (distancia_manhattan(posicao_agente, p), p[0], p[1]))
+
+            posicao_agente = passo_em_direcao(posicao_agente, meta)
+            passos += 1
+            crencas["posicao"] = posicao_agente
+            crencas["V"][posicao_agente[0]][posicao_agente[1]] += 1
+            atualizar_percepcao()
+
+    tempo_execucao_ms = (time.perf_counter() - tempo_inicio) * 1000
+    return {
+        "arquitetura": "Baseado em Utilidade",
+        "lixos_coletados": lixos_coletados,
+        "pontuacao_total": pontuacao,
+        "numero_passos": passos,
+        "tempo_execucao_ms": round(tempo_execucao_ms, 3),
+    }
 
 # ---------------------------------------------------------------------------
 # Exibição de resultados
@@ -704,9 +819,12 @@ def main():
     resultado_objetivos = agente_baseado_em_objetivos(lixos, verboso=False)
     mostrar_resultado_agente(resultado_objetivos)
 
-    # --- Tabela Comparativa ---
-    mostrar_tabela_comparativa([resultado_simples, resultado_modelos, resultado_objetivos])
+    # --- Arquitetura 4: Agente Baseado em Utilidade ---
+    resultado_utilidade = agente_baseado_em_utilidades(lixos, verboso=False)
+    mostrar_resultado_agente(resultado_utilidade)
 
+    # --- Tabela Comparativa ---
+    mostrar_tabela_comparativa([resultado_simples, resultado_modelos, resultado_objetivos, resultado_utilidade])
 
 if __name__ == "__main__":
     main()
