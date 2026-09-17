@@ -2,7 +2,7 @@ import statistics
 import random
 
 # Importa as configurações e os agentes do seu arquivo principal
-from main import (
+from agentes import (
     TAMANHO, QUANTIDADE_ORGANICO, QUANTIDADE_RECICLAVEL,
     POSICAO_INICIAL, POSICAO_LIXEIRA,
     agente_reativo_simples, agente_baseado_em_modelos,
