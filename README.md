@@ -58,14 +58,36 @@ $$U(\text{Ação}) = \text{Valor do Lixo} - D_{\text{Manhattan}}(\text{PosAgente
 
 ## 📊 Comparativo de Desempenho
 
-Resultados obtidos com a mesma distribuição aleatória inicial dos 15 lixos:
+Os resultados abaixo foram verificados executando os quatro agentes no mesmo ambiente determinístico gerado com a semente `42`, que contém 15 lixos no total (10 orgânicos e 5 recicláveis).
 
 | Arquitetura do Agente | Lixos Coletados | Pontuação Total | Nº de Passos | Tempo de Execução (ms) |
 | :--- | :---: | :---: | :---: | :---: |
-| **1. Reativo Simples** | 15 | [Preencher] | [Preencher] | [Preencher] |
-| **2. Baseado em Modelos** | 15 | [Preencher] | [Preencher] | [Preencher] |
-| **3. Baseado em Objetivos** | 15 | [Preencher] | [Preencher] | [Preencher] |
-| **4. Baseado em Utilidade** | 15 | [Preencher] | [Preencher] | [Preencher] |
+| **1. Reativo Simples** | 15 / 15 | 35 | 4190 | 17.377 |
+| **2. Baseado em Modelos** | 15 / 15 | 35 | 1044 | 3.970 |
+| **3. Baseado em Objetivos** | 15 / 15 | 35 | 668 | 13.820 |
+| **4. Baseado em Utilidade** | 15 / 15 | 35 | 668 | 14.254 |
+
+### Observações
+
+- Todos os agentes conseguiram coletar os 15 lixos e entregar tudo na lixeira, resultando em pontuação máxima de 35 pontos.
+- O agente **Baseado em Modelos** apresentou a melhor eficiência em tempo de execução, com cerca de 3,97 ms no ambiente testado.
+- O agente **Baseado em Objetivos** e o **Baseado em Utilidade** obtiveram o menor número de passos entre as arquiteturas mais sofisticadas, ambos com 668 passos.
+- O agente **Reativo Simples** percorreu muito mais células, indicando maior redundância e menor eficiência de exploração.
+
+## 📈 Análise Estatística (30 Execuções)
+
+Para validar a robustez da comparação, cada arquitetura foi executada 30 vezes com diferentes distribuições aleatórias de lixo. A tabela abaixo mostra a média dos resultados.
+
+| Arquitetura do Agente | Passos Médios | Tempo Médio (ms) |
+| :--- | :---: | :---: |
+| **Reativo Simples** | 3288.27 | 10.93 |
+| **Baseado em Modelos** | 928.83 | 3.48 |
+| **Baseado em Objetivos** | 690.33 | 17.05 |
+| **Baseado em Utilidades** | 692.60 | 16.97 |
+
+### Conclusão
+
+Com base nos resultados obtidos, o agente **Baseado em Modelos** foi o mais eficiente em custo computacional e também reduziu significativamente o número de passos, enquanto os agentes **Baseado em Objetivos** e **Baseado em Utilidade** tiveram melhor planejamento de rota, com menor esforço de deslocamento do que o reativo simples. A arquitetura mais simples se mostrou capaz de completar a tarefa, mas com muito mais movimentação e maior custo operacional.
 
 ## Função de Desempenho
 
@@ -78,10 +100,10 @@ de movimentação no ambiente.
 - O agente deve minimizar o tempo de execução
 - O agente deve evitar movimentos desnecessários e colisões
 
-A comparação entre as arquiteturas será realizada utilizando a mesma
-distribuição inicial de lixo na matriz 20x20.
+A comparação entre as arquiteturas foi realizada utilizando a mesma
+distribuição inicial de lixo na matriz 20x20, além de uma análise de 30 execuções para validar a consistência dos resultados.
 
-Para cada agente serão registrados:
+Para cada agente foram registrados:
 
 - quantidade de lixos coletados;
 - pontuação total;
