@@ -3,8 +3,6 @@ from tkinter import ttk
 import random
 import time
 
-# IMPORTAÇÃO DO SEU CÓDIGO ORIGINAL
-# Certifique-se de que o arquivo com o código dos agentes se chama 'agentes.py'
 import agentes
 
 class InterfaceAgentes:
