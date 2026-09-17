@@ -788,10 +788,6 @@ def mostrar_tabela_comparativa(resultados):
     print()
 
 
-# ---------------------------------------------------------------------------
-# Ponto de entrada
-# ---------------------------------------------------------------------------
-
 def main():
 
     # Gera o ambiente determinístico com SEMENTE = 42
